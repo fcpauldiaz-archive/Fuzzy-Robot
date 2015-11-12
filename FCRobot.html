@@ -337,21 +337,6 @@ claúsulas de horn:
 
 
         };
-         function defuzzification2(superArray){
-
-          var array1 = superArray[1]; //x
-          var array2 = superArray[0]; //fx
-          var sum1 = 0;
-          var sum2 = 0;
-          for (var i = 0; i < array2.length; i++) {
-              sum1 += array1[i]*array2[i];
-              sum2 += array2[i];
-          }
-           
-          return sum1/sum2;
-
-
-        };
         function mapeoAngulo(ballx,bally,playerx,playery){
         	var angulo = Math.atan2(ballx-playerx,bally-playery)*180/Math.PI;
         	anguloDif = angulo;
@@ -382,7 +367,7 @@ claúsulas de horn:
 
         	var arrayCentroide = [x1,x2,x3,x4,x5];
         	var arrayFx = [p1,p2,p3,p4,p5];
-        	return [arrayFx,arrayCentroide];
+        	return [arrayCentroide,arrayFx];
 
         }
         function pendiente(y1,y2,x1,x2,eval){
@@ -673,7 +658,7 @@ claúsulas de horn:
      		// rapidez=defuzzification(pertenencia(calcularCerca(ball.x,ball.y,player.x,player.y)));
      		var rapidez = defuzzification(mapeo(ball.x,ball.y,player.x,player.y))+1;
      		//var sp = new Spline({-180:0,-135:1,-90:0.5,-45:0.2,0:0,45:0,90:0,135:0,180:0});
-     		var anguloCalculado = defuzzification2(mapeoAngulo(ball.x,ball.y,player.x,player.y));
+     		var anguloCalculado = defuzzification(mapeoAngulo(ball.x,ball.y,player.x,player.y));
       		document.getElementById("print69").innerHTML ="Velocidad" + rapidez;
       	  	document.getElementById("print68").innerHTML ="Angulo Calculado" + anguloCalculado;
 
