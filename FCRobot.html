@@ -64,9 +64,6 @@ claúsulas de horn:
   <head>
     <meta charset="utf-8"/>
     <title>Robot</title>
-    <script src="./presentation.js"></script>
-	<script src="./raphael-min.js"></script>
-	<script src="fuzzy.js"></script>
 	<script src="cspl.js" type="text/javascript"></script>
 	<script src="Chart.js"></script>
 	<script src="numeric.js"></script>
@@ -78,6 +75,7 @@ claúsulas de horn:
 		var raf;
 		var anguloInicial;
 		var anguloActual = Math.floor((Math.random() * 360) + 1);
+		var anguloAnterior = Math.floor((Math.random() * 360) + 1);
 		var contador = 0;
 		var bool2;
 
@@ -339,22 +337,23 @@ claúsulas de horn:
 
 
         };
-        function mapeoAngulo(ballx,bally,playerx,playery,angActual){
+        function mapeoAngulo(ballx,bally,playerx,playery){
         	var angulo = Math.atan2(ballx-playerx,bally-playery)*180/Math.PI;
-        	anguloDif = angulo- angActual;
-        	desfase = 0;
+        	anguloDif = angulo;
+        	desfase = 180;
         	angulo = anguloDif+desfase;
         	var p1 = pertenenciaMuyIzquierda(angulo);
         	var p2 = pertenenciaIzquierda(angulo);
         	var p3 = pertenenciaLadoOpuesto(angulo);
         	var p4 = pertenenciaDerecha(angulo);
         	var p5 = pertenenciaMuyDerecha(angulo);
-        	document.getElementById("printfx").innerHTML ="p1:"+p1+"p2:"+p2+"p3:"+p3+"p4:"+p4+"p5:"+p5+"angulo:" + angActual;
+        	
         	var x1 = averiguarAngulo(p1,pertenenciaMoverMuyIzquierda);
         	var x2 = averiguarAngulo(p2,pertenenciaMoverIzquierda);
         	var x3 = averiguarAngulo(p3,pertenenciaMoverLadoOpuesto);
         	var x4 = averiguarAngulo(p4,pertenenciaMoverDerecha);
         	var x5 = averiguarAngulo(p5,pertenenciaMoverMuyDerecha);
+        	document.getElementById("printfx").innerHTML ="p1:"+p1+"p2:"+p2+"p3:"+p3+"p4:"+p4+"p5:"+p5+"angulo:" + defuzzification([[x1,x2,x3,x4,x5],[p1,p2,p3,p4,p5]]);
         	p1 = p1-desfase;
         	p2 = p2-desfase;
         	p3 = p3-desfase;
@@ -435,7 +434,7 @@ claúsulas de horn:
     	};
     	//2 salida
 	    function pertenenciaMoverMuyIzquierda(angulo){
-			spline = new Spline({0:0,45:1,90:0.5,135:0.2,180:0,225:0,270:0,315:0,360:0});
+			spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
 
         	returnVal = Math.floor(spline(angulo)*100)/100;
         	if (returnVal<0){
@@ -447,7 +446,7 @@ claúsulas de horn:
         	return returnVal;
     	};
     	function pertenenciaMoverIzquierda(angulo){
-    		spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
+    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
 
         	returnVal = Math.floor(spline(angulo)*100)/100;
         	if (returnVal<0){
@@ -471,7 +470,7 @@ claúsulas de horn:
         	return returnVal;
     	};
     	function pertenenciaMoverDerecha(angulo){
-    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
+    			spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
 
         	returnVal = Math.floor(spline(angulo)*100)/100;
         	if (returnVal<0){
@@ -483,9 +482,9 @@ claúsulas de horn:
         	return returnVal;
     	};
     	function pertenenciaMoverMuyDerecha(angulo){
-    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
+    		spline = new Spline({0:0,45:1,90:0.5,135:0.2,180:0,225:0,270:0,315:0,360:0});
 
-        		returnVal = Math.floor(spline(angulo)*100)/100;
+        	returnVal = Math.floor(spline(angulo)*100)/100;
         	if (returnVal<0){
         		return 0;
         	}
@@ -546,9 +545,9 @@ claúsulas de horn:
 		
       		anguloActual = -grados;
 			grados = anguloSiguiente;
-     		document.getElementById("print72").innerHTML ="actual : " + anguloActual;
-      		document.getElementById("print82").innerHTML ="siguiente : " + anguloSiguiente;
-      		document.getElementById("print92").innerHTML ="cambioAngulo: " + cambioDeAngulo;
+     		//document.getElementById("print72").innerHTML ="actual : " + anguloActual;
+      		//document.getElementById("print82").innerHTML ="siguiente : " + anguloSiguiente;
+      		//document.getElementById("print92").innerHTML ="cambioAngulo: " + cambioDeAngulo;
 			return grados;  
 
         };
@@ -605,7 +604,7 @@ claúsulas de horn:
 		
         //función de la animación.
         function draw() {
-        	var anguloActual = Math.floor((Math.random() * 30) + 1)+calcularAngulo(ball.x,ball.y,player.x,player.y);
+        	var anguloActual = anguloAnterior;
 			ball.draw();
 			ctx.clearRect(0,0, canvas.width, canvas.height);
 			ctx.rect(0,0,800,400);
@@ -637,14 +636,16 @@ claúsulas de horn:
 			//calcular la rapidez a la que se mueve.
 			//rapidez = calcularCerca(ball.x,ball.y,player.x,player.y);
      		// rapidez=defuzzification(pertenencia(calcularCerca(ball.x,ball.y,player.x,player.y)));
-     		var rapidez = defuzzification(mapeo(ball.x,ball.y,player.x,player.y));
+     		var rapidez = defuzzification(mapeo(ball.x,ball.y,player.x,player.y))+1;
      		//var sp = new Spline({-180:0,-135:1,-90:0.5,-45:0.2,0:0,45:0,90:0,135:0,180:0});
-     		var anguloCalculado = defuzzification(mapeoAngulo(ball.x,ball.y,player.x,player.y,anguloActual));
+     		var anguloCalculado = defuzzification(mapeoAngulo(ball.x,ball.y,player.x,player.y));
       		document.getElementById("print69").innerHTML ="Velocidad" + rapidez;
-      	  	document.getElementById("print68").innerHTML ="AnguloReal" + Math.atan2(ball.y-player.y,ball.x-player.x)*180/Math.PI;
-      	  	document.getElementById("print70").innerHTML ="AnguloActual" + anguloCalculado;
+      	  	document.getElementById("print68").innerHTML ="Angulo Calculado" + anguloCalculado;
+      	  	error = (-anguloCalculado +calcularAngulo(ball.x,ball.y,player.x,player.y))
+      	  	document.getElementById("print70").innerHTML ="Angulo Error" + error;
+      	  	
       		
-			pos = getAngle(player.x,player.y,calcularAngulo(ball.x,ball.y,player.x,player.y),rapidez);
+			pos = getAngle(player.x,player.y,anguloCalculado+error,rapidez);
 			bool = colision(ball.x,ball.y,player.x,player.y);
 			if (bool)
 				bool2=true;
@@ -671,7 +672,8 @@ claúsulas de horn:
 				contador++;
 			}
 
-			direccion.a = anguloActual;
+			direccion.a = Math.floor((Math.random() * 30) + 1)+calcularAngulo(ball.x,ball.y,player.x,player.y);
+			anguloAnterior = anguloCalculado;
 
 
 			raf = window.requestAnimationFrame(draw);
