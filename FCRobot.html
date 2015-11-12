@@ -294,14 +294,14 @@ claúsulas de horn:
           function averiguarAngulo(fx,fEval){
         	var xF = 0;
 
-        	while (xF<=360){
+        	while (true){
         		//document.getElementById("printfx").innerHTML ="F(x) "    + fx;
         		fy = fEval(xF);
         		//document.getElementById("printfy").innerHTML ="F(y) "    + fy;
-        		if (fy == fx){
+        		if (Math.abs(fy-fx)<=0.1){
         			break;
         		}
-        		xF += 5;
+        		xF += 0.01;
         	}
         	return xF;
         };
@@ -337,6 +337,21 @@ claúsulas de horn:
 
 
         };
+         function defuzzification2(superArray){
+
+          var array1 = superArray[1]; //x
+          var array2 = superArray[0]; //fx
+          var sum1 = 0;
+          var sum2 = 0;
+          for (var i = 0; i < array2.length; i++) {
+              sum1 += array1[i]*array2[i];
+              sum2 += array2[i];
+          }
+           
+          return sum1/sum2;
+
+
+        };
         function mapeoAngulo(ballx,bally,playerx,playery){
         	var angulo = Math.atan2(ballx-playerx,bally-playery)*180/Math.PI;
         	anguloDif = angulo;
@@ -353,145 +368,165 @@ claúsulas de horn:
         	var x3 = averiguarAngulo(p3,pertenenciaMoverLadoOpuesto);
         	var x4 = averiguarAngulo(p4,pertenenciaMoverDerecha);
         	var x5 = averiguarAngulo(p5,pertenenciaMoverMuyDerecha);
-        	document.getElementById("printfx").innerHTML ="p1:"+p1+"p2:"+p2+"p3:"+p3+"p4:"+p4+"p5:"+p5+"angulo:" + defuzzification([[x1,x2,x3,x4,x5],[p1,p2,p3,p4,p5]]);
-        	p1 = p1-desfase;
-        	p2 = p2-desfase;
-        	p3 = p3-desfase;
-        	p4 = p4-desfase;
-        	p5 = p5-desfase;
-        	x1 = x1-desfase;
-        	x2 = x2-desfase;
-        	x3 = x3-desfase;
-        	x4 = x4-desfase;
-        	x5 = x5-desfase;
+        	document.getElementById("printfx").innerHTML ="p1: "+p1+" p2: "+p2+" p3: "+p3+" p4: "+p4+"p5: "+p5+" x1: " +x1 +" x2: " + x2 + " x3: " + " x4: " + x4 + " x5: "+ x5;
+        	p1 = p1;
+        	p2 = p2;
+        	p3 = p3;
+        	p4 = p4;
+        	p5 = p5;
+        	x1 = x1;
+        	x2 = x2;
+        	x3 = x3;
+        	x4 = x4;
+        	x5 = x5;
 
         	var arrayCentroide = [x1,x2,x3,x4,x5];
         	var arrayFx = [p1,p2,p3,p4,p5];
         	return [arrayFx,arrayCentroide];
 
         }
+        function pendiente(y1,y2,x1,x2,eval){
+        	return (y2-y1)/(x2-x1)*(eval-x1)+y1;
+        }
 
     	//2 var entrada
     	function pertenenciaMuyIzquierda(angulo){
-    		spline = new Spline({0:0,45:1,90:0.5,135:0.2,180:0,225:0,270:0,315:0,360:0});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+    		if (angulo >=45 && angulo < 90){
+    			return pendiente(1,0.5,45,90,angulo);
+    		}
+    		if (angulo >= 90 && angulo <135){
+    			return pendiente(0.5,0.2,90,135,angulo);
+    		}
+    		if (angulo >= 135 && angulo < 180){
+    			return pendiente(0.2,0,135,180,angulo);
+    		}
+    		
+        	return 0;
     	};
     	function pertenenciaIzquierda(angulo){
-    		spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
-
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+    		//spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
+			if (angulo >=45 && angulo < 90){
+    			return pendiente(0.2,0.5,45,90,angulo);
+    		}
+    		if (angulo >= 90 && angulo <135){
+    			return pendiente(0.5,1,90,135,angulo);
+    		}
+    		if (angulo >= 135 && angulo < 180){
+    			return pendiente(1,0,135,180,angulo);
+    		}
+        	return 0;
     	};
     	function pertenenciaLadoOpuesto(angulo){
-    		spline = new Spline({0:1,45:0,90:0,135:0,180:0,225:0,270:0,315:0,360:1});
+    		//spline = new Spline({0:1,45:0,90:0,135:0,180:0,225:0,270:0,315:0,360:1});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+        	if (angulo >= 0 && angulo <45){
+    			return pendiente(1,0,0,45,angulo);
+
+    		}
+    		if (angulo >= 315 && angulo <360){
+    			return pendiente(0,1,315,360,angulo);
+
+    		}
+        	return 0;
     	};
     	function pertenenciaDerecha(angulo){
-    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
+    		//spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+        	if (angulo >= 225 && angulo <270){
+    			return pendiente(0,1,225,270,angulo);
+    		}
+    		if (angulo >= 270 && angulo < 315){
+    			return pendiente(1,0.2,270,315,angulo);
+    		}
+    		if (angulo >= 315 && angulo < 360){
+    			return pendiente(0.2,0,315,360,angulo);
+    		}
+        	return 0;
     	};
     	function pertenenciaMuyDerecha(angulo){
-    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
+    		//spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+         	if (angulo >= 225 && angulo <270){
+    			return pendiente(0,0.2,225,270,angulo);
+    		}
+    		if (angulo >= 270 && angulo < 315){
+    			return pendiente(0.2,0.5,270,315,angulo);
+    		}
+    		if (angulo >= 315 && angulo < 360){
+    			return pendiente(0.5,1,315,360,angulo);
+    		}
+        	return 0;
     	};
     	//2 salida
 	    function pertenenciaMoverMuyIzquierda(angulo){
-			spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
+			//spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+        	
+         	if (angulo >= 225 && angulo <270){
+    			return pendiente(0,0.2,225,270,angulo);
+    		}
+    		if (angulo >= 270 && angulo < 315){
+    			return pendiente(0.2,0.5,270,315,angulo);
+    		}
+    		if (angulo >= 315 && angulo < 360){
+    			return pendiente(0.5,1,315,360,angulo);
+    		}
+        	return 0;
     	};
     	function pertenenciaMoverIzquierda(angulo){
-    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
+    		//spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+        	if (angulo >= 225 && angulo <270){
+    			return pendiente(0,1,225,270,angulo);
+    		}
+    		if (angulo >= 270 && angulo < 315){
+    			return pendiente(1,0.2,270,315,angulo);
+    		}
+    		if (angulo >= 315 && angulo < 360){
+    			return pendiente(0.2,0,315,360,angulo);
+    		}
+        	return 0;
     	};
     	function pertenenciaMoverLadoOpuesto(angulo){
-    		spline = new Spline({0:1,45:0,90:0,135:0,180:0,225:0,270:0,315:0,360:1});
+    		//spline = new Spline({0:1,45:0,90:0,135:0,180:0,225:0,270:0,315:0,360:1});
 
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+        	if (angulo >= 0 && angulo <45){
+    			return pendiente(1,0,0,45,angulo);
+
+    		}
+    		if (angulo >= 315 && angulo <360){
+    			return pendiente(0,1,315,360,angulo);
+
+    		}
+        	return 0;
     	};
     	function pertenenciaMoverDerecha(angulo){
-    			spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
-
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+    		//spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
+			if (angulo >=45 && angulo < 90){
+    			return pendiente(0.2,0.5,45,90,angulo);
+    		}
+    		if (angulo >= 90 && angulo <135){
+    			return pendiente(0.5,1,90,135,angulo);
+    		}
+    		if (angulo >= 135 && angulo < 180){
+    			return pendiente(1,0,135,180,angulo);
+    		}
+        	return 0;
     	};
     	function pertenenciaMoverMuyDerecha(angulo){
-    		spline = new Spline({0:0,45:1,90:0.5,135:0.2,180:0,225:0,270:0,315:0,360:0});
-
-        	returnVal = Math.floor(spline(angulo)*100)/100;
-        	if (returnVal<0){
-        		return 0;
-        	}
-        	if (returnVal>1){
-        		return 1;
-        	}
-        	return returnVal;
+    	
+    		if (angulo >=45 && angulo < 90){
+    			return pendiente(1,0.5,45,90,angulo);
+    		}
+    		if (angulo >= 90 && angulo <135){
+    			return pendiente(0.5,0.2,90,135,angulo);
+    		}
+    		if (angulo >= 135 && angulo < 180){
+    			return pendiente(0.2,0,135,180,angulo);
+    		}
+    		
+        	return 0;
     	};
 
 
@@ -638,14 +673,15 @@ claúsulas de horn:
      		// rapidez=defuzzification(pertenencia(calcularCerca(ball.x,ball.y,player.x,player.y)));
      		var rapidez = defuzzification(mapeo(ball.x,ball.y,player.x,player.y))+1;
      		//var sp = new Spline({-180:0,-135:1,-90:0.5,-45:0.2,0:0,45:0,90:0,135:0,180:0});
-     		var anguloCalculado = defuzzification(mapeoAngulo(ball.x,ball.y,player.x,player.y));
+     		var anguloCalculado = defuzzification2(mapeoAngulo(ball.x,ball.y,player.x,player.y));
       		document.getElementById("print69").innerHTML ="Velocidad" + rapidez;
       	  	document.getElementById("print68").innerHTML ="Angulo Calculado" + anguloCalculado;
-      	  	error = (-anguloCalculado +calcularAngulo(ball.x,ball.y,player.x,player.y))
-      	  	document.getElementById("print70").innerHTML ="Angulo Error" + error;
+
+      	  	//error = (-anguloCalculado +calcularAngulo(ball.x,ball.y,player.x,player.y))
+      	  	document.getElementById("print70").innerHTML ="Angulo Real" + calcularAngulo(ball.x,ball.y,player.x,player.y);
       	  	
       		
-			pos = getAngle(player.x,player.y,anguloCalculado+error,rapidez);
+			pos = getAngle(player.x,player.y,anguloCalculado-100,rapidez);
 			bool = colision(ball.x,ball.y,player.x,player.y);
 			if (bool)
 				bool2=true;
