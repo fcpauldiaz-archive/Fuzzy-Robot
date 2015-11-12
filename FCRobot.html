@@ -1,0 +1,915 @@
+<!--
+Universidad del Valle de Guatemala
+6/11/2015
+Programa que simula un robot jugando futbol utilizando
+lógica difusa
+Autores:
+Pablo Díaz 13203
+Adolfo Morales 13014
+https://github.com/Jabher/cubic-spline
+
+Lógica Fuzzy
+
+Variables Crisp:
+
+La posicion distancia entre el jugador y la pelota, valores entre 0 y 800.
+El ángulo entre el jugador y la pelota, valores entre 0n y 360n.
+
+
+Variables ligüísticas de entrada:
+
+La distancia del jugador hacia la pelota:
+  a. esta muy cerca
+  b. esta cerca
+  d. esta lejos
+  e. esta muy lejos
+
+El angulo del jugador hacia la pelota:
+  a. esta a muy a la izquierda
+  b. esta a la izquierda
+  c. esta recto
+  d. esta a la derecha
+  e. esta muy a la derecha
+
+Variables ligüísticas de salida:
+
+Rapidez de movimiento:
+  a. movimiento muy lento
+  b. movimiento lento
+  c. movimiento rápido
+  d. movimiento muy rápido
+
+Dirección del ángulo.
+  a. mover muy a la derecha.
+  b. mover a la derecha.
+  c. no cambiar la dirección.
+  d. mover a la izquierda.
+  e. mover muy a la izquierda.
+
+claúsulas de horn:
+
+  1. Si el jugador esta muy lejos de la pelota el movimiento
+    será muy rápido.
+  2. Si el jugador está lejos de la pelota el movimiento será rápido.
+  4. Si el jugador está cerca el movimiento será lento.
+  5. Si el jugador está muy cerca el movimiento será muy lento.
+  5. Si el angulo del jugador esta muy a la izquierda cambiar el angulo a muy a la derecha.
+  6. Si el ángulo del jugadro está a la izquierda mover el ángulo a la derecha.
+  7. Si el ángulo del jugador está recto no se mueve el ángulo.
+  8. Si el ángulo del jugador está a la derecha se mueve al ángulo a la izquierda.
+  9. Si el ángulo del jugadro está a muy a la derecha se mueve el ángulo muy a la izquierda.
+-->
+
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Robot</title>
+    <script src="./presentation.js"></script>
+	<script src="./raphael-min.js"></script>
+	<script src="fuzzy.js"></script>
+	<script src="cspl.js" type="text/javascript"></script>
+	<script src="Chart.js"></script>
+	<script src="numeric.js"></script>
+    <script type="text/javascript">
+	function jugar(){
+		var canvas = document.getElementById('canvas');
+		var ctx = canvas.getContext('2d');
+
+		var raf;
+		var anguloInicial;
+		var anguloActual = Math.floor((Math.random() * 360) + 1);
+		var contador = 0;
+		var bool2;
+
+		// Variables que continene la posicion x,y para ser Gol
+		var xGol = 5;
+		var yGol = 170;
+
+		var anguloGolCalculado = 0;
+		var xGolCalculado = 0;
+		var yGolCalculado = 0;
+		var posToGol = 0;
+
+		//variables paralingüísticas de entrada
+		var muyCerca = 100; //0-100
+		var cerca = 300;    //100-300
+		var lejos = 500;    //300-500
+		var muyLejos = 500; //>=500
+
+		var muyIzquierda = -50;
+		var izquierda = -20;
+		var recto = 0;
+		var derecha = 20;
+		var muyDerecha = 50;
+
+		//variables de paralingüísticas de salida
+		var muyLento = 2;
+		var lento = 4;
+		var rapido = 6;
+		var muyRapido=10;
+
+		var moverMuyDerecha = 80;
+		var moverDerecha = 40;
+		var noMover = 0;
+		var moverIzquierda = -40;
+		var moverMuyIzquierda = -80;
+
+		ctx.clearRect(0,0, canvas.width, canvas.height);
+		ctx.rect(0,0,800,400);
+		ctx.fillStyle="green";
+		ctx.fill();
+		ctx.beginPath();
+		//porteria
+		ctx.moveTo(55,100);
+		ctx.lineTo(0,100);
+		ctx.moveTo(55,230);
+		ctx.lineTo(55,100);
+		ctx.moveTo(55,230);
+		ctx.lineTo(0,230);
+		ctx.strokeStyle = '#ffffff';
+		ctx.stroke();
+		//Media cancha
+		ctx.moveTo(400,400);
+		ctx.lineTo(400,0);
+		ctx.strokeStyle = '#ffffff';
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.arc(400,200,100,0,2*Math.PI);
+		ctx.stroke();
+		
+		/**
+		* Función que devuelve los componentes x y y del ángulo en su posicion actual.
+		* @param  float x     posicion x actual del jugador.
+		* @param  float y     posicion y actual del jugador.
+		* @param  float angle ángulo a alcanzar.
+		* @param  float h     tamaño del avance.
+		* @return {float, float} regresa las componentes del ángulo.     
+		*/
+		function getAngle(x, y, angle, h) {
+			var radians = angle * (Math.PI / 180);
+			return { x: x + h * Math.cos(radians), y: y + h * Math.sin(radians) };
+		};
+
+        //pelota de futbol
+        var ball = {
+			x: Math.floor((Math.random() * 800) + 1),
+			y: Math.floor((Math.random() * 400) + 1),
+			vx: 5,
+			vy: 2,
+			radius: 10,
+			color: 'white',
+			draw: function() {
+			ctx.beginPath();
+			ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2, true);
+			ctx.closePath();
+			ctx.fillStyle = this.color;
+			ctx.fill();
+			}
+        };
+
+        
+        //objeto jugador
+        var player = {
+			x: Math.floor((Math.random() * 800) + 1),
+			y: Math.floor((Math.random() * 400) + 1),
+			vx: 1,
+			vy: 1,
+			radius: 10,
+			color: 'black',
+			draw: function() {
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2, true);
+				ctx.closePath();
+				ctx.fillStyle = this.color;
+				ctx.fill();
+			}
+        };
+        //objeto para mostrar la direccion
+        var direccion = {
+			x: player.x,
+			y: player.y,
+			radius: 10,
+			color: 'yellow',
+
+			a: anguloActual, //angulo inicial aleatorio.
+			l: 30,
+			draw: function() {
+				ctx.beginPath();
+				ctx.moveTo(this.x,this.y+10);
+				pos = getAngle(this.x, this.y, this.a, this.l);
+				ctx.lineTo(pos.x,pos.y);
+				ctx.lineWidth=5;
+				ctx.strokeStyle = 'yellow';
+				ctx.stroke();
+			}
+        };
+
+        /**
+         * Funcion que devuelve que tanto pertenece a muyCerca
+         * @param  float distancia del jugador a la pelota
+         * @return float con el grado de pertenencia
+         */
+        function pertenenciaMuyCerca(distancia) {
+         
+        spline = new Spline({0:	1,25:1,50:0.5,100:0,200:0,300:0,400:0,500:0,600:0,700:0,800:0});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+          
+        };
+
+        /**
+         * Funcion que devuelve que tanto pertenece a cerca
+         * @param  float distancia del jugador a la pelota
+         * @return float con el grado de pertenencia
+         */
+        function pertenenciaCerca(distancia) {
+         
+        spline = new Spline({0:	0,25:0.4,50:0.6,100:1,200:0.4,300:0,400:0,500:0,600:0,700:0,800:0});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+          
+        };
+          /**
+         * Funcion que devuelve que tanto pertenece a cerca
+         * @param  float distancia del jugador a la pelota
+         * @return float con el grado de pertenencia
+         */
+        function pertenenciaLejos(distancia) {
+         
+        spline = new Spline({0:	0,25:0,50:0.1,100:0.4,200:0.8,300:1,400:0.8,500:0.4,600:0,700:0,800:0});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+          
+        };
+          /**
+         * Funcion que devuelve que tanto pertenece a cerca
+         * @param  float distancia del jugador a la pelota
+         * @return float con el grado de pertenencia
+         */
+        function pertenenciaMuyLejos(distancia) {
+         
+        spline = new Spline({0:	0,25:0,50:0,100:0,200:0,300:0,400:0.2,500:0.5,600:0.8,700:1,800:1});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+          
+        };
+
+        function pertenenciaMuyLento(distancia) {
+       	spline = new Spline({0:0,1:0.9,2:1,4:0.5,6:0,10:0});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+        };
+          function pertenenciaLento(distancia) {
+       	spline = new Spline({0:0,1:0,2:0.5,4:1,6:0.5,10:0});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+        };
+          function pertenenciaRapido(distancia) {
+       	spline = new Spline({0:0,1:0,2:0,4:0.5,6:1,10:0});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+        };
+          function pertenenciaMuyRapido(distancia) {
+       	spline = new Spline({0:0,1:0,2:0,4:0,6:0.5,10:1});
+
+        return Math.floor(spline(distancia)*100)/100;
+
+        };
+        function averiguarX(fx,fEval){
+        	var xF = 0;
+        	while (true){
+        		fy = fEval(xF);
+        		if (Math.abs(fy-fx)<=0.1){
+        			break;
+        		}
+        		xF += 0.09;
+        	}
+        	return xF;
+        };
+          function averiguarAngulo(fx,fEval){
+        	var xF = 0;
+
+        	while (xF<=360){
+        		//document.getElementById("printfx").innerHTML ="F(x) "    + fx;
+        		fy = fEval(xF);
+        		//document.getElementById("printfy").innerHTML ="F(y) "    + fy;
+        		if (fy == fx){
+        			break;
+        		}
+        		xF += 5;
+        	}
+        	return xF;
+        };
+
+        function mapeo(ballx,bally,playerx,playery){
+            var distancia = Math.sqrt(Math.pow(ballx-playerx,2) + Math.pow(bally-playery,2));
+        	var p1 = pertenenciaMuyLejos(distancia);
+        	var p2 = pertenenciaLejos(distancia);
+        	var p3 = pertenenciaCerca(distancia);
+        	var p4 = pertenenciaMuyLejos(distancia);
+        	var x1 = averiguarX(p1,pertenenciaMuyRapido);
+        	var x2 = averiguarX(p2,pertenenciaRapido);
+        	var x3 = averiguarX(p3,pertenenciaLento);
+        	var x4 = averiguarX(p4,pertenenciaMuyLento);
+        	var arrayCentroide = [x1,x2,x3,x4];
+        	var arrayFx = [p1,p2,p3,p4];
+        	return [arrayCentroide,arrayFx];
+
+        };
+
+        function defuzzification(superArray){
+
+          var array1 = superArray[0]; //x
+          var array2 = superArray[1]; //fx
+          var sum1 = 0;
+          var sum2 = 0;
+          for (var i = 0; i < array2.length; i++) {
+              sum1 += array1[i]*array2[i];
+              sum2 += array2[i];
+          }
+           
+          return sum1/sum2;
+
+
+        };
+        function mapeoAngulo(ballx,bally,playerx,playery,angActual){
+        	var angulo = Math.atan2(ballx-playerx,bally-playery)*180/Math.PI;
+        	anguloDif = angulo- angActual;
+        	desfase = 0;
+        	angulo = anguloDif+desfase;
+        	var p1 = pertenenciaMuyIzquierda(angulo);
+        	var p2 = pertenenciaIzquierda(angulo);
+        	var p3 = pertenenciaLadoOpuesto(angulo);
+        	var p4 = pertenenciaDerecha(angulo);
+        	var p5 = pertenenciaMuyDerecha(angulo);
+        	document.getElementById("printfx").innerHTML ="p1:"+p1+"p2:"+p2+"p3:"+p3+"p4:"+p4+"p5:"+p5+"angulo:" + angActual;
+        	var x1 = averiguarAngulo(p1,pertenenciaMoverMuyIzquierda);
+        	var x2 = averiguarAngulo(p2,pertenenciaMoverIzquierda);
+        	var x3 = averiguarAngulo(p3,pertenenciaMoverLadoOpuesto);
+        	var x4 = averiguarAngulo(p4,pertenenciaMoverDerecha);
+        	var x5 = averiguarAngulo(p5,pertenenciaMoverMuyDerecha);
+        	p1 = p1-desfase;
+        	p2 = p2-desfase;
+        	p3 = p3-desfase;
+        	p4 = p4-desfase;
+        	p5 = p5-desfase;
+        	x1 = x1-desfase;
+        	x2 = x2-desfase;
+        	x3 = x3-desfase;
+        	x4 = x4-desfase;
+        	x5 = x5-desfase;
+
+        	var arrayCentroide = [x1,x2,x3,x4,x5];
+        	var arrayFx = [p1,p2,p3,p4,p5];
+        	return [arrayFx,arrayCentroide];
+
+        }
+
+    	//2 var entrada
+    	function pertenenciaMuyIzquierda(angulo){
+    		spline = new Spline({0:0,45:1,90:0.5,135:0.2,180:0,225:0,270:0,315:0,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaIzquierda(angulo){
+    		spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaLadoOpuesto(angulo){
+    		spline = new Spline({0:1,45:0,90:0,135:0,180:0,225:0,270:0,315:0,360:1});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaDerecha(angulo){
+    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaMuyDerecha(angulo){
+    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	//2 salida
+	    function pertenenciaMoverMuyIzquierda(angulo){
+			spline = new Spline({0:0,45:1,90:0.5,135:0.2,180:0,225:0,270:0,315:0,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaMoverIzquierda(angulo){
+    		spline = new Spline({0:0,45:0.2,90:0.5,135:1,180:0,225:0,270:0,315:0,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaMoverLadoOpuesto(angulo){
+    		spline = new Spline({0:1,45:0,90:0,135:0,180:0,225:0,270:0,315:0,360:1});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaMoverDerecha(angulo){
+    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:1,270:0.5,315:0.2,360:0});
+
+        	returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+    	function pertenenciaMoverMuyDerecha(angulo){
+    		spline = new Spline({0:0,45:0,90:0,135:0,180:0,225:0.2,270:0.5,315:1,360:0});
+
+        		returnVal = Math.floor(spline(angulo)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+        		return 1;
+        	}
+        	return returnVal;
+    	};
+
+
+
+
+        /**
+         * Cláusla de horn que calcula el angulo del jugador hacia la pelota
+         * @param  float ballx   posicion x de la pelota.
+         * @param  float bally   posicion y de la pelota.
+         * @param  float playerx posicion x del jugador.
+         * @param  float playery posicion y del jugador.
+         * @return float ángulo  grado en degradianes.
+         */
+        function calcularAngulo(ballx,bally,playerx,playery){
+			var distancia = Math.sqrt(Math.pow(ballx-playerx,2) + Math.pow(bally-playery,2));
+
+			var anguloSiguiente = Math.atan2(bally-playery,ballx-playerx)*180/Math.PI;
+			var cambioDeAngulo = Math.abs(anguloActual-(anguloSiguiente));
+			var grados = 0;
+			
+			
+			 if (cambioDeAngulo <= muyIzquierda && cambioDeAngulo > -200) {
+				grados = muyDerecha;
+		        muyDerecha = anguloSiguiente;
+		        anguloActual = -grados;
+				return grados;
+			}
+			else if (cambioDeAngulo <= izquierda && cambioDeAngulo > muyIzquierda) {
+		        grados = derecha
+		        derecha = anguloSiguiente;
+		        anguloActual = -grados;
+				return grados;
+			}
+			else if (cambioDeAngulo <= 10-recto && cambioDeAngulo > recto+10) {
+				grados = anguloActual;
+
+				return grados;
+			}
+			else if (cambioDeAngulo <= derecha && cambioDeAngulo > recto+10) {
+				grados = izquierda;
+		        izquierda = anguloSiguiente;
+		        anguloActual = -grados;
+				return grados;
+			}
+			else if (cambioDeAngulo <= muyDerecha && cambioDeAngulo > 200) {
+				grados = muyIzquierda;
+		        muyIzquierda = anguloSiguiente;
+		        anguloActual = -grados;
+				return grados;
+			}
+		
+      		anguloActual = -grados;
+			grados = anguloSiguiente;
+     		document.getElementById("print72").innerHTML ="actual : " + anguloActual;
+      		document.getElementById("print82").innerHTML ="siguiente : " + anguloSiguiente;
+      		document.getElementById("print92").innerHTML ="cambioAngulo: " + cambioDeAngulo;
+			return grados;  
+
+        };
+        /**
+         * Clausula de horn para saber si esta muy cerca, cerca, lejos o muy lejos el 
+         * jugador de la pelota. 
+         * @param  float ballx   posicion x de la pelota.
+         * @param  float bally   posicion y de la pelota.
+         * @param  float playerx posicion x del jugador.
+         * @param  float playery posicion y del jugador.
+         * @return int con el parámetro de velocidad del jugador.
+         */
+        function calcularCerca(ballx,bally,playerx,playery){
+          //formula de la distancia
+          var distancia = Math.sqrt(Math.pow(ballx-playerx,2) + Math.pow(bally-playery,2));
+          document.getElementById("print68").innerHTML ="distancia real" + distancia;
+
+          if (distancia <= muyCerca){
+             
+            return Math.abs(distancia-muyCerca)/distancia;
+          }
+          if (distancia <= cerca && distancia > muyCerca){
+           
+            return Math.abs(distancia-cerca)/distancia;
+          }
+          if (distancia <= lejos && distancia > cerca){
+           
+            return Math.abs(distancia-lejos)/distancia;
+          }
+          if (distancia >= muyLejos){
+            
+            return Math.abs(distancia-muyLejos)/distancia;
+          }
+          //return distancia;
+          
+        };
+
+        function colision(ballx,bally,playerx,playery){
+			var distancia = Math.sqrt(Math.pow(ballx-playerx,2) + Math.pow(bally-playery,2));
+
+			if (distancia <= 8){
+				return true;
+			}
+        };
+
+		function randomIntFromInterval(min,max)
+		{
+			return Math.floor(Math.random() * (max - min + 1)) + min;
+		}
+
+		function calcularAnguloGol(angulo){
+			return randomIntFromInterval(angulo-100,angulo+100);
+		}
+		
+        //función de la animación.
+        function draw() {
+        	var anguloActual = Math.floor((Math.random() * 30) + 1)+calcularAngulo(ball.x,ball.y,player.x,player.y);
+			ball.draw();
+			ctx.clearRect(0,0, canvas.width, canvas.height);
+			ctx.rect(0,0,800,400);
+			ctx.fillStyle="green";
+			ctx.fill();
+			ctx.moveTo(0,0);
+			ctx.lineTo(300,150);
+			ctx.beginPath();
+			//dibujar porteria
+			ctx.moveTo(55,100);
+			ctx.lineTo(0,100);
+			ctx.moveTo(55,230);
+			ctx.lineTo(55,100);
+			ctx.moveTo(55,230);
+			ctx.lineTo(0,230);
+			ctx.strokeStyle = '#ffffff';
+			ctx.stroke();
+			//Media cancha
+			ctx.moveTo(400,400);
+			ctx.lineTo(400,0);
+			ctx.strokeStyle = '#ffffff';
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.arc(400,200,100,0,2*Math.PI);
+			ctx.stroke();
+			//terminar de dibujar porteria
+			player.draw();
+			direccion.draw();
+			//calcular la rapidez a la que se mueve.
+			//rapidez = calcularCerca(ball.x,ball.y,player.x,player.y);
+     		// rapidez=defuzzification(pertenencia(calcularCerca(ball.x,ball.y,player.x,player.y)));
+     		var rapidez = defuzzification(mapeo(ball.x,ball.y,player.x,player.y));
+     		//var sp = new Spline({-180:0,-135:1,-90:0.5,-45:0.2,0:0,45:0,90:0,135:0,180:0});
+     		var anguloCalculado = defuzzification(mapeoAngulo(ball.x,ball.y,player.x,player.y,anguloActual));
+      		document.getElementById("print69").innerHTML ="Velocidad" + rapidez;
+      	  	document.getElementById("print68").innerHTML ="AnguloReal" + Math.atan2(ball.y-player.y,ball.x-player.x)*180/Math.PI;
+      	  	document.getElementById("print70").innerHTML ="AnguloActual" + anguloCalculado;
+      		
+			pos = getAngle(player.x,player.y,calcularAngulo(ball.x,ball.y,player.x,player.y),rapidez);
+			bool = colision(ball.x,ball.y,player.x,player.y);
+			if (bool)
+				bool2=true;
+			if (!bool2){
+				player.x = pos.x+player.vx;
+				player.y = pos.y+player.vy;
+				direccion.x = pos.x;  
+				direccion.y = pos.y;
+			}
+			if (bool2){
+				var anguloGol = calcularAnguloGol(calcularAngulo(xGol,yGol,ball.x,ball.y));
+			  	var anguloGolCalculado = anguloGol;
+				var randomToGol = randomIntFromInterval(5,45);
+				posToGol = getAngle(ball.x,ball.y,anguloGol,randomToGol);
+				xGolCalculado = posToGol.x;
+				yGolCalculado = posToGol.y;
+
+				ball.x = xGolCalculado;    //aqui deben ir las componentes del ángulo aleatorio a calcular
+				ball.y = yGolCalculado;     //aqui deben ir las componentes del ángulo aleatorio a calcular
+				if (contador >= 5){
+					bool2 = false;
+					contador = 0;
+				} 
+				contador++;
+			}
+
+			direccion.a = anguloActual;
+
+
+			raf = window.requestAnimationFrame(draw);
+			// Condiciones para ver si es gol
+			if (ball.x <= 1) {
+				if (ball.y <= 230 && ball.y >= 100) {
+					document.getElementById("print0").innerHTML ="Gooooooooooooooooool";
+					window.cancelAnimationFrame(raf);
+				}
+			}
+       
+			//Mostrar variables actuales
+			document.getElementById("print1").innerHTML ="Ball x: "    + ball.x;
+			document.getElementById("print2").innerHTML ="Ball y: "    + ball.y;
+			document.getElementById("print3").innerHTML ="Jugador x: " + player.x;
+			document.getElementById("print4").innerHTML ="Jugador y: " + player.y;
+			document.getElementById("print5").innerHTML ="Angulo : "   + anguloActual;
+			document.getElementById("print6").innerHTML ="Distancia: " + Math.sqrt(Math.pow(ball.x-player.x,2)+Math.pow(ball.y-player.y,2));
+			document.getElementById("print7").innerHTML ="AnguloGol x: "    + xGolCalculado;
+			document.getElementById("print8").innerHTML ="AnguloGol y: "    + yGolCalculado;
+			document.getElementById("print10").innerHTML ="AnguloGol: "    + anguloGolCalculado;
+			document.getElementById("print11").innerHTML ="Tiro a gol (distancia): "    + randomToGol;
+          
+         
+			//raf = window.requestAnimationFrame(draw);
+			//defensiva para no salir del cuadro
+			if (player.y + player.vy > canvas.height || player.y + player.vy < 0) {
+				player.vy = -player.vy;
+			}
+			if (player.x + player.vx > canvas.width || player.x + player.vx < 0) {
+				pos = getAngle(player.x,player.y,-180,rapidez);
+				direccion.x = pos.x;
+			}
+        };
+        //la animación empieza cuando se coloca el mouse en el cuadro.
+        canvas.addEventListener('mouseover', function(e){
+          raf = window.requestAnimationFrame(draw);
+
+        });
+        //la animación se detiene cuando sale el mouse del cuadro.
+        canvas.addEventListener("mouseout",function(e){
+          window.cancelAnimationFrame(raf);
+        });
+
+
+        //Aqui van las instrucciones al inicio del programa.
+        player.draw();
+        direccion.draw();
+        ball.draw();
+        anguloInicial = Math.atan2(ball.y-player.y,ball.x-player.x)*180/Math.PI;;
+       //Mostrar variables al principio del programa.
+       //Math.floor(a * 100) / 100;
+        document.getElementById("print1").innerHTML ="Ball x: "    + ball.x
+        document.getElementById("print2").innerHTML ="Ball y: "    + ball.y;
+        document.getElementById("print3").innerHTML ="Jugador x: " + player.x;
+        document.getElementById("print4").innerHTML ="Jugador y: " + player.y;
+        document.getElementById("print5").innerHTML ="Ángulo Inicial: "   + anguloInicial;
+
+        document.getElementById("print6").innerHTML ="Distancia: " + Math.sqrt(Math.pow(ball.x-player.x,2)+Math.pow(ball.y-player.y,2));
+        
+      }
+    </script>
+ 	
+	
+	
+		<style type="text/css">
+			canvas { border: 1px solid black; }
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="800" height="400"></canvas>
+		<p id="printfx"></p>
+    	<p id="printfy"></p>
+    	<p id="print68"></p>
+    	<p id="print69"></p>
+    	<p id="print70"></p>
+		<p id="print0"></p>
+		<p id="print1"></p>
+		<p id="print2"></p>
+		<p id="print3"></p>
+		<p id="print4"></p>
+		<p id="print5"></p>
+		<p id="print6"></p>
+		<p id="print7"></p>
+		<p id="print8"></p>
+	    <p id="print72"></p>
+	    <p id="print82"></p>
+		<p id="print92"></p>
+		<p id="print10"></p>
+		<p id="print11"></p>
+	
+		<div style="width:30%">
+			<div>
+				<canvas id="canvasChart" height="450" width="600"></canvas>
+			</div>
+		</div>
+
+
+	<script>
+		
+        var pMuyCerca = function(distancia){
+        	spline = new Spline({0:	1,25:1,50:0.5,100:0.1,150:0,200:0,250:0,300:0,350:0,400:0,450:0,500:0,550:0,600:0,650:0,700:0,750:0,800:0,850:0});
+        	returnVal = Math.floor(spline(distancia)*100)/100;
+        	if (returnVal<0){
+        		return 0;
+        	}
+        	if (returnVal>1){
+	        		return 1;
+	        	}
+
+
+        return returnVal;
+
+        };
+        var pCerca = function(distancia) {
+         
+	        spline = new Spline({0:	0,25:0,50:0.1,100:0.5,150:1,200:0.5,250:0.2,300:0,350:0,400:0,450:0,500:0,550:0,600:0,650:0,700:0,750:0,800:0,850:0});
+			returnVal = Math.floor(spline(distancia)*100)/100;
+	        	if (returnVal<0){
+	        		return 0;
+	        	}
+	        	if (returnVal>1){
+	        		return 1;
+	        	}
+
+
+	        return returnVal;
+    	};
+        var  pLejos = function(distancia) {
+         
+        	spline = new Spline({0:	0,25:0,50:0,100:0,150:0.1,200:0.2,250:0.5,300:1,350:0.5,400:0.2,450:0.1,500:0,500:0,600:0,650:0,700:0,750:0,800:0,850:0});
+
+      		returnVal = Math.floor(spline(distancia)*100)/100;
+	        	if (returnVal<0){
+	        		return 0;
+	        	}
+	        	if (returnVal>1){
+	        		return 1;
+	        	}
+
+	        return returnVal;
+
+          
+        };
+     
+        var pMuyLejos = function(distancia) {
+         
+        	spline = new Spline({0:	0,25:0,50:0,100:0,150:0,200:0,250:0,300:0,350:0,400:0.2,450:0.5,500:0.7,550:0.9,600:1,650:1,700:1,750:1,800:1,850:1});
+
+        	returnVal = Math.floor(spline(distancia)*100)/100;
+	        	if (returnVal<0){
+	        		return 0;
+	        	}
+	        	if (returnVal>1){
+	        		return 1;
+	        	}
+
+
+	        return returnVal;
+
+          
+        };
+          
+        
+        var num = numeric.linspace(0,850);
+		var randomScalingFactor = function(){ return Math.round(Math.random()*100)};
+		var eval2 = function(array,func){
+			result = [];
+			i=0;
+			while(i<array.length){
+				result.push(func(array[i]));
+				if (i ==0)
+					i = i +25;
+				else
+					i = i + 40;
+			}
+			return result;
+		};
+		var lineChartData = {
+			labels : [0,25,50,100,150,250,300,350,400,450,500,550,600,650,700,750,800,850],
+			datasets : [
+				{
+					label: "MuyCerca",
+					fillColor : "rgba(23, 23, 170,0.4)",
+					strokeColor : "rgba(23, 23, 170,1)",
+					pointColor : "rgba(23, 23, 170,1)",
+					pointStrokeColor : "#fff",
+					pointHighlightFill : "#fff",
+					pointHighlightStroke : "rgba(220,220,220,1)",
+					data : eval2(num,pMuyCerca)
+				},
+				{
+					label: "Cerca",
+					fillColor : "rgba(141, 56, 11,0.4)",
+					strokeColor : "rgba(141, 56, 11,1)",
+					pointColor : "rgba(141, 56, 11,1)",
+					pointStrokeColor : "#fff",
+					pointHighlightFill : "#fff",
+					pointHighlightStroke : "rgba(220,220,220,1)",
+					data : eval2(num,pCerca)
+				},
+				{
+					label: "Lejos",
+					fillColor : "rgba(80, 141, 11,0.4)",
+					strokeColor : "rgba(80, 141, 11,1)",
+					pointColor : "rgba(80, 141, 11,1)",
+					pointStrokeColor : "#fff",
+					pointHighlightFill : "#fff",
+					pointHighlightStroke : "rgba(220,220,220,1)",
+					data : eval2(num,pLejos)
+				},
+				{
+					label: "MuyLejos",
+					fillColor : "rgba(11, 141, 117,0.4)",
+					strokeColor : "rgba(11, 141, 117,1)",
+					pointColor : "rgba(11, 141, 117,1)",
+					pointStrokeColor : "#fff",
+					pointHighlightFill : "#fff",
+					pointHighlightStroke : "rgba(220,220,220,1)",
+					data : eval2(num,pMuyLejos)
+				}
+				
+				
+			]
+
+		}
+
+	window.onload = function(){
+		jugar();
+		var ctx2 = document.getElementById("canvasChart").getContext("2d");
+		window.myLine = new Chart(ctx2).Line(lineChartData, {
+			responsive: true
+		});
+	}
+
+
+	</script>
+		
+	</body>
+</html>
+
